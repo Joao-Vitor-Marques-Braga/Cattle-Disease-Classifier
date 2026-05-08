@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cattle Disease Classifier</title>
+  <meta name="description" content="Análise de doenças bovinas com IA — envie uma imagem e obtenha o diagnóstico com mapa de calor Grad-CAM." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0f14;
+      --surface:   #14171f;
+      --surface2:  #1c2030;
+      --border:    #252a38;
+      --accent:    #4f8ef7;
+      --accent2:   #6ee7b7;
+      --danger:    #f87171;
+      --text:      #e8eaf0;
+      --muted:     #6b7280;
+      --radius:    14px;
+      --trans:     0.2s ease;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 48px 16px 80px;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .logo {
+      font-size: 2rem;
+      margin-bottom: 12px;
+      filter: drop-shadow(0 0 18px #4f8ef755);
+    }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .subtitle {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 400;
+    }
+
+    /* ── Status pill ── */
+    #status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 16px;
+      padding: 4px 12px;
+      border-radius: 99px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      transition: var(--trans);
+    }
+    #status-pill.online  { border-color: #34d39955; color: #34d399; background: #34d39910; }
+    #status-pill.offline { border-color: #f8717155; color: var(--danger); background: #f8717110; }
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+    .dot.pulse { animation: pulse 1.5s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* ── Main card ── */
+    .card {
+      width: 100%;
+      max-width: 680px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+    }
+
+    /* ── Drop zone ── */
+    #drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 48px 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--trans), background var(--trans);
+      position: relative;
+    }
+    #drop-zone:hover, #drop-zone.dragover {
+      border-color: var(--accent);
+      background: #4f8ef708;
+    }
+    #drop-zone input[type="file"] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .drop-label {
+      font-size: 0.9rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .drop-label span {
+      color: var(--accent);
+      font-weight: 500;
+    }
+    #file-name {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: var(--accent2);
+      font-weight: 500;
+      min-height: 18px;
+    }
+
+    /* ── Preview ── */
+    #preview-section {
+      display: none;
+      margin-top: 24px;
+    }
+    #preview-section.visible { display: block; }
+    .preview-wrap {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      aspect-ratio: 4/3;
+      background: #000;
+    }
+    .preview-wrap img {
+      width: 100%; height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+    .preview-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    /* ── Button ── */
+    #analyze-btn {
+      width: 100%;
+      margin-top: 20px;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), #3a6fd8);
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity var(--trans), transform var(--trans);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    #analyze-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    #analyze-btn:not(:disabled):hover { opacity: 0.9; transform: translateY(-1px); }
+    #analyze-btn:not(:disabled):active { transform: translateY(0); }
+
+    /* spinner */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid #ffffff55;
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 32px 0;
+    }
+
+    /* ── Results ── */
+    #results-section { display: none; }
+    #results-section.visible { display: block; }
+
+    .result-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .result-header h2 {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .badge {
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-success { background: #34d39922; color: #34d399; }
+    .badge-warn    { background: #fbbf2422; color: #fbbf24; }
+    .badge-danger  { background: #f8717122; color: var(--danger); }
+
+    /* Diagnosis box */
+    .diagnosis-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+    }
+    .diag-disease {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      margin-bottom: 4px;
+    }
+    .diag-sub {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    /* Confidence bar */
+    .conf-wrap { margin-top: 16px; }
+    .conf-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      margin-bottom: 6px;
+      color: var(--muted);
+    }
+    .conf-label strong { color: var(--text); }
+    .conf-track {
+      height: 6px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .conf-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width 0.8s cubic-bezier(.4,0,.2,1);
+      width: 0%;
+    }
+
+    /* Probabilities */
+    .section-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+    .prob-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+    .prob-item { display: flex; flex-direction: column; gap: 4px; }
+    .prob-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+    }
+    .prob-name { font-weight: 500; }
+    .prob-val  { color: var(--muted); font-variant-numeric: tabular-nums; }
+    .prob-track {
+      height: 4px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .prob-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: var(--accent);
+      opacity: 0.55;
+      transition: width 0.7s cubic-bezier(.4,0,.2,1);
+      width: 0%;
+    }
+    .prob-fill.top { opacity: 1; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+    /* Heatmap */
+    .images-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-top: 16px;
+    }
+    @media (max-width: 520px) { .images-grid { grid-template-columns: 1fr; } }
+    .img-panel {
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: #000;
+    }
+    .img-panel img { width: 100%; display: block; aspect-ratio: 1; object-fit: contain; }
+    .img-caption {
+      padding: 8px 12px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+      background: var(--surface2);
+    }
+
+    /* ── Error box ── */
+    #error-box {
+      display: none;
+      background: #f8717112;
+      border: 1px solid #f8717144;
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-top: 20px;
+      font-size: 0.85rem;
+      color: var(--danger);
+      line-height: 1.5;
+    }
+    #error-box.visible { display: block; }
+
+    /* ── API URL config ── */
+    .api-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+    .api-row label {
+      font-size: 0.8rem;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .api-row input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: var(--text);
+      font-family: 'Inter', monospace;
+      font-size: 0.82rem;
+      outline: none;
+      transition: border-color var(--trans);
+    }
+    .api-row input:focus { border-color: var(--accent); }
+
+    footer {
+      margin-top: 48px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🐄</div>
+  <h1>Cattle Disease Classifier</h1>
+  <p class="subtitle">Detecção de doenças bovinas com IA — MobileNetV2 + Grad-CAM</p>
+  <div id="status-pill">
+    <span class="dot pulse"></span>
+    <span id="status-text">Verificando API…</span>
+  </div>
+</header>
+
+<div class="card">
+
+  <!-- API URL -->
+  <div class="api-row">
+    <label for="api-url">API URL</label>
+    <input id="api-url" type="text" value="http://localhost:8000" spellcheck="false" />
+  </div>
+
+  <!-- Drop zone -->
+  <div id="drop-zone">
+    <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/bmp" />
+    <div class="drop-icon">📷</div>
+    <p class="drop-label">
+      Arraste uma imagem aqui ou <span>clique para selecionar</span>
+    </p>
+    <p style="font-size:0.75rem;color:var(--muted);margin-top:6px;">JPG · PNG · WEBP · BMP</p>
+    <p id="file-name"></p>
+  </div>
+
+  <!-- Preview -->
+  <div id="preview-section">
+    <p class="preview-label" style="margin-top:20px;">Pré-visualização</p>
+    <div class="preview-wrap">
+      <img id="preview-img" src="" alt="Preview da imagem selecionada" />
+    </div>
+  </div>
+
+  <!-- Error -->
+  <div id="error-box"></div>
+
+  <!-- Analyze button -->
+  <button id="analyze-btn" disabled>
+    <span id="btn-label">Selecione uma imagem</span>
+  </button>
+
+  <!-- Results -->
+  <div id="results-section">
+    <hr class="divider" />
+
+    <div class="result-header">
+      <h2>Resultado da Análise</h2>
+      <span id="confidence-badge" class="badge"></span>
+    </div>
+
+    <!-- Diagnosis -->
+    <div class="diagnosis-box">
+      <div class="diag-disease" id="result-disease">—</div>
+      <div class="diag-sub">Doença detectada com maior probabilidade</div>
+      <div class="conf-wrap">
+        <div class="conf-label">
+          <span>Confiança</span>
+          <strong id="result-conf-pct">0%</strong>
+        </div>
+        <div class="conf-track">
+          <div class="conf-fill" id="conf-fill"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Probabilities -->
+    <p class="section-title">Probabilidades por Classe</p>
+    <div class="prob-list" id="prob-list"></div>
+
+    <!-- Heatmap -->
+    <p class="section-title">Visualização Grad-CAM</p>
+    <div class="images-grid">
+      <div class="img-panel">
+        <img id="orig-img" src="" alt="Imagem original" />
+        <div class="img-caption">Original</div>
+      </div>
+      <div class="img-panel">
+        <img id="heatmap-img" src="" alt="Mapa de calor Grad-CAM" />
+        <div class="img-caption">Grad-CAM Heatmap</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>Cattle Disease Classifier · MobileNetV2 · FastAPI · Grad-CAM</footer>
+
+<script>
+  const apiInput     = document.getElementById('api-url');
+  const fileInput    = document.getElementById('file-input');
+  const dropZone     = document.getElementById('drop-zone');
+  const fileNameEl   = document.getElementById('file-name');
+  const previewSec   = document.getElementById('preview-section');
+  const previewImg   = document.getElementById('preview-img');
+  const analyzeBtn   = document.getElementById('analyze-btn');
+  const btnLabel     = document.getElementById('btn-label');
+  const errorBox     = document.getElementById('error-box');
+  const resultsSec   = document.getElementById('results-section');
+  const statusPill   = document.getElementById('status-pill');
+  const statusText   = document.getElementById('status-text');
+
+  let selectedFile = null;
+
+  // ── Health check ──────────────────────────────────────────────────────────
+  async function checkHealth() {
+    const base = apiInput.value.replace(/\/$/, '');
+    try {
+      const res  = await fetch(`${base}/health`, { signal: AbortSignal.timeout(4000) });
+      const data = await res.json();
+      if (data.model_loaded) {
+        setStatus('online', `API online · ${data.classes ? data.classes.length : '?'} classes`);
+      } else {
+        setStatus('offline', 'API online · modelo não carregado');
+      }
+    } catch {
+      setStatus('offline', 'API offline — inicie o servidor');
+    }
+  }
+
+  function setStatus(state, msg) {
+    statusPill.className = state;
+    statusText.textContent = msg;
+    const dot = statusPill.querySelector('.dot');
+    dot.className = state === 'online' ? 'dot pulse' : 'dot';
+  }
+
+  checkHealth();
+  setInterval(checkHealth, 10000);
+  apiInput.addEventListener('change', checkHealth);
+
+  // ── File handling ─────────────────────────────────────────────────────────
+  function handleFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    selectedFile = file;
+    fileNameEl.textContent = file.name;
+
+    const url = URL.createObjectURL(file);
+    previewImg.src = url;
+    previewSec.classList.add('visible');
+
+    analyzeBtn.disabled = false;
+    btnLabel.textContent = 'Analisar Imagem';
+
+    hideError();
+    resultsSec.classList.remove('visible');
+  }
+
+  fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+  dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('dragover'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('dragover');
+    handleFile(e.dataTransfer.files[0]);
+  });
+
+  // ── Analyze ───────────────────────────────────────────────────────────────
+  analyzeBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+
+    setBtnLoading(true);
+    hideError();
+    resultsSec.classList.remove('visible');
+
+    const base = apiInput.value.replace(/\/$/, '');
+    const form = new FormData();
+    form.append('file', selectedFile);
+
+    try {
+      const res  = await fetch(`${base}/predict`, { method: 'POST', body: form });
+      const data = await res.json();
+
+      if (!res.ok) {
+        showError(`Erro ${res.status}: ${data.detail || 'Falha na inferência.'}`);
+        return;
+      }
+
+      renderResults(data);
+    } catch (err) {
+      showError(`Não foi possível conectar à API em "${base}".\n\nVerifique se o servidor está rodando e tente novamente.`);
+    } finally {
+      setBtnLoading(false);
+    }
+  });
+
+  function setBtnLoading(on) {
+    analyzeBtn.disabled = on;
+    btnLabel.textContent = on ? 'Analisando…' : 'Analisar Imagem';
+    const spinner = analyzeBtn.querySelector('.spinner');
+    if (on && !spinner) {
+      const s = document.createElement('div');
+      s.className = 'spinner';
+      analyzeBtn.prepend(s);
+    } else if (!on && spinner) {
+      spinner.remove();
+    }
+  }
+
+  // ── Render results ────────────────────────────────────────────────────────
+  function renderResults(data) {
+    const pct = (data.confianca * 100).toFixed(1);
+
+    // Badge color
+    const badge = document.getElementById('confidence-badge');
+    if (data.confianca >= 0.75) { badge.className = 'badge badge-success'; badge.textContent = 'Alta confiança'; }
+    else if (data.confianca >= 0.5) { badge.className = 'badge badge-warn'; badge.textContent = 'Média confiança'; }
+    else { badge.className = 'badge badge-danger'; badge.textContent = 'Baixa confiança'; }
+
+    // Disease & confidence
+    document.getElementById('result-disease').textContent = formatName(data.doenca_detectada);
+    document.getElementById('result-conf-pct').textContent = `${pct}%`;
+    setTimeout(() => {
+      document.getElementById('conf-fill').style.width = `${pct}%`;
+    }, 80);
+
+    // Probabilities
+    const list = document.getElementById('prob-list');
+    list.innerHTML = '';
+    const sorted = Object.entries(data.probabilidades).sort((a, b) => b[1] - a[1]);
+    sorted.forEach(([cls, prob], i) => {
+      const p = (prob * 100).toFixed(2);
+      const isTop = i === 0;
+      const item = document.createElement('div');
+      item.className = 'prob-item';
+      item.innerHTML = `
+        <div class="prob-row">
+          <span class="prob-name">${formatName(cls)}</span>
+          <span class="prob-val">${p}%</span>
+        </div>
+        <div class="prob-track">
+          <div class="prob-fill${isTop ? ' top' : ''}" data-w="${p}"></div>
+        </div>`;
+      list.appendChild(item);
+    });
+    setTimeout(() => {
+      list.querySelectorAll('.prob-fill').forEach(el => {
+        el.style.width = el.dataset.w + '%';
+      });
+    }, 80);
+
+    // Images
+    document.getElementById('orig-img').src = previewImg.src;
+    document.getElementById('heatmap-img').src = `data:image/jpeg;base64,${data.heatmap_base64}`;
+
+    resultsSec.classList.add('visible');
+    resultsSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function formatName(name) {
+    return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function showError(msg) {
+    errorBox.textContent = msg;
+    errorBox.classList.add('visible');
+  }
+  function hideError() {
+    errorBox.classList.remove('visible');
+    errorBox.textContent = '';
+  }
+</script>
+</body>
+</html>

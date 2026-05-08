@@ -1,0 +1,46 @@
+# ── Ambiente virtual ──────────────────────────────────────────
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# ── Modelos treinados (arquivos grandes) ──────────────────────
+*.pth
+*.pt
+*.onnx
+*.h5
+
+# ── Dataset (baixado pelo download_dataset.py) ────────────────
+dataset/
+dataset_clean/
+
+# ── Segredos e variáveis de ambiente ─────────────────────────
+.env
+
+# ── Resultados gerados localmente ────────────────────────────
+resultado_gradcam.jpg
+training_curves.png
+training_curves_clean.png
+
+# ── Roboflow cache ────────────────────────────────────────────
+roboflow/
+
+# ── IDEs e editores ───────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.user
+
+# ── Windows ───────────────────────────────────────────────────
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ── macOS ─────────────────────────────────────────────────────
+.DS_Store
+
+# ── Logs ──────────────────────────────────────────────────────
+*.log
