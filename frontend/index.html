@@ -1,31 +1,41 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cattle Disease Classifier</title>
-  <meta name="description" content="Análise de doenças bovinas com IA — envie uma imagem e obtenha o diagnóstico com mapa de calor Grad-CAM." />
+  <title>Corn Analyzer (Dual Model)</title>
+  <meta name="description" content="Análise completa de lavouras de milho (Estágio e Pragas) usando IA." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:        #0d0f14;
-      --surface:   #14171f;
-      --surface2:  #1c2030;
-      --border:    #252a38;
-      --accent:    #4f8ef7;
-      --accent2:   #6ee7b7;
-      --danger:    #f87171;
-      --text:      #e8eaf0;
-      --muted:     #6b7280;
-      --radius:    14px;
-      --trans:     0.2s ease;
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
     }
 
-    html { scroll-behavior: smooth; }
+    :root {
+      --bg: #0d0f14;
+      --surface: #14171f;
+      --surface2: #1c2030;
+      --border: #252a38;
+      --accent: #4f8ef7;
+      --accent2: #6ee7b7;
+      --danger: #f87171;
+      --text: #e8eaf0;
+      --muted: #6b7280;
+      --radius: 14px;
+      --trans: 0.2s ease;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
 
     body {
       font-family: 'Inter', sans-serif;
@@ -43,11 +53,13 @@
       text-align: center;
       margin-bottom: 48px;
     }
+
     .logo {
       font-size: 2rem;
       margin-bottom: 12px;
       filter: drop-shadow(0 0 18px #4f8ef755);
     }
+
     h1 {
       font-size: 1.75rem;
       font-weight: 700;
@@ -57,6 +69,7 @@
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
+
     .subtitle {
       margin-top: 8px;
       color: var(--muted);
@@ -79,23 +92,46 @@
       color: var(--muted);
       transition: var(--trans);
     }
-    #status-pill.online  { border-color: #34d39955; color: #34d399; background: #34d39910; }
-    #status-pill.offline { border-color: #f8717155; color: var(--danger); background: #f8717110; }
+
+    #status-pill.online {
+      border-color: #34d39955;
+      color: #34d399;
+      background: #34d39910;
+    }
+
+    #status-pill.offline {
+      border-color: #f8717155;
+      color: var(--danger);
+      background: #f8717110;
+    }
+
     .dot {
-      width: 6px; height: 6px;
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: currentColor;
     }
-    .dot.pulse { animation: pulse 1.5s infinite; }
+
+    .dot.pulse {
+      animation: pulse 1.5s infinite;
+    }
+
     @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.3; }
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.3;
+      }
     }
 
     /* ── Main card ── */
     .card {
       width: 100%;
-      max-width: 680px;
+      max-width: 800px;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
@@ -112,24 +148,38 @@
       transition: border-color var(--trans), background var(--trans);
       position: relative;
     }
-    #drop-zone:hover, #drop-zone.dragover {
+
+    #drop-zone:hover,
+    #drop-zone.dragover {
       border-color: var(--accent);
       background: #4f8ef708;
     }
+
     #drop-zone input[type="file"] {
-      position: absolute; inset: 0;
-      opacity: 0; cursor: pointer; width: 100%; height: 100%;
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
     }
-    .drop-icon { font-size: 2.5rem; margin-bottom: 12px; }
+
+    .drop-icon {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+    }
+
     .drop-label {
       font-size: 0.9rem;
       color: var(--muted);
       line-height: 1.6;
     }
+
     .drop-label span {
       color: var(--accent);
       font-weight: 500;
     }
+
     #file-name {
       margin-top: 10px;
       font-size: 0.8rem;
@@ -143,7 +193,11 @@
       display: none;
       margin-top: 24px;
     }
-    #preview-section.visible { display: block; }
+
+    #preview-section.visible {
+      display: block;
+    }
+
     .preview-wrap {
       position: relative;
       border-radius: 10px;
@@ -152,18 +206,12 @@
       aspect-ratio: 4/3;
       background: #000;
     }
+
     .preview-wrap img {
-      width: 100%; height: 100%;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
       display: block;
-    }
-    .preview-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--muted);
-      margin-bottom: 8px;
     }
 
     /* ── Button ── */
@@ -185,25 +233,65 @@
       justify-content: center;
       gap: 8px;
     }
+
     #analyze-btn:disabled {
       opacity: 0.45;
       cursor: not-allowed;
       transform: none !important;
     }
-    #analyze-btn:not(:disabled):hover { opacity: 0.9; transform: translateY(-1px); }
-    #analyze-btn:not(:disabled):active { transform: translateY(0); }
 
-    /* spinner */
+    #analyze-btn:not(:disabled):hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    #analyze-btn:not(:disabled):active {
+      transform: translateY(0);
+    }
+
+    #pdf-btn {
+      width: 100%;
+      margin-top: 16px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface2);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--trans);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    #pdf-btn.visible {
+      display: flex;
+    }
+
+    #pdf-btn:hover {
+      border-color: var(--accent);
+      background: #4f8ef711;
+    }
+
     .spinner {
-      width: 16px; height: 16px;
+      width: 16px;
+      height: 16px;
       border: 2px solid #ffffff55;
       border-top-color: #fff;
       border-radius: 50%;
       animation: spin 0.7s linear infinite;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Divider ── */
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
     .divider {
       border: none;
       border-top: 1px solid var(--border);
@@ -211,19 +299,26 @@
     }
 
     /* ── Results ── */
-    #results-section { display: none; }
-    #results-section.visible { display: block; }
+    #results-section {
+      display: none;
+    }
 
-    .result-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 24px;
+    #results-section.visible {
+      display: block;
     }
-    .result-header h2 {
-      font-size: 1rem;
-      font-weight: 600;
+
+    .dual-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
     }
+
+    @media (max-width: 700px) {
+      .dual-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .badge {
       padding: 3px 10px;
       border-radius: 99px;
@@ -231,33 +326,51 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.5px;
+      display: inline-block;
+      margin-bottom: 12px;
     }
-    .badge-success { background: #34d39922; color: #34d399; }
-    .badge-warn    { background: #fbbf2422; color: #fbbf24; }
-    .badge-danger  { background: #f8717122; color: var(--danger); }
 
-    /* Diagnosis box */
+    .badge-success {
+      background: #34d39922;
+      color: #34d399;
+    }
+
+    .badge-warn {
+      background: #fbbf2422;
+      color: #fbbf24;
+    }
+
+    .badge-danger {
+      background: #f8717122;
+      color: var(--danger);
+    }
+
     .diagnosis-box {
       background: var(--surface2);
       border: 1px solid var(--border);
       border-left: 4px solid var(--accent);
       border-radius: 10px;
-      padding: 20px 24px;
+      padding: 20px;
       margin-bottom: 24px;
     }
+
     .diag-disease {
-      font-size: 1.4rem;
+      font-size: 1.2rem;
       font-weight: 700;
       letter-spacing: -0.3px;
       margin-bottom: 4px;
     }
+
     .diag-sub {
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       color: var(--muted);
+      margin-bottom: 16px;
     }
 
-    /* Confidence bar */
-    .conf-wrap { margin-top: 16px; }
+    .conf-wrap {
+      margin-top: 12px;
+    }
+
     .conf-label {
       display: flex;
       justify-content: space-between;
@@ -265,82 +378,99 @@
       margin-bottom: 6px;
       color: var(--muted);
     }
-    .conf-label strong { color: var(--text); }
+
+    .conf-label strong {
+      color: var(--text);
+    }
+
     .conf-track {
       height: 6px;
       background: var(--border);
       border-radius: 99px;
       overflow: hidden;
     }
+
     .conf-fill {
       height: 100%;
       border-radius: 99px;
       background: linear-gradient(90deg, var(--accent), var(--accent2));
-      transition: width 0.8s cubic-bezier(.4,0,.2,1);
+      transition: width 0.8s cubic-bezier(.4, 0, .2, 1);
       width: 0%;
     }
 
-    /* Probabilities */
-    .section-title {
-      font-size: 0.78rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--muted);
-      margin-bottom: 14px;
+    .prob-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 24px;
     }
-    .prob-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
-    .prob-item { display: flex; flex-direction: column; gap: 4px; }
+
+    .prob-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
     .prob-row {
       display: flex;
       justify-content: space-between;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
     }
-    .prob-name { font-weight: 500; }
-    .prob-val  { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+    .prob-name {
+      font-weight: 500;
+    }
+
+    .prob-val {
+      color: var(--muted);
+    }
+
     .prob-track {
       height: 4px;
       background: var(--border);
       border-radius: 99px;
       overflow: hidden;
     }
+
     .prob-fill {
       height: 100%;
       border-radius: 99px;
       background: var(--accent);
       opacity: 0.55;
-      transition: width 0.7s cubic-bezier(.4,0,.2,1);
+      transition: width 0.7s;
       width: 0%;
     }
-    .prob-fill.top { opacity: 1; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
 
-    /* Heatmap */
-    .images-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 16px;
-      margin-top: 16px;
+    .prob-fill.top {
+      opacity: 1;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
     }
-    @media (max-width: 520px) { .images-grid { grid-template-columns: 1fr; } }
+
     .img-panel {
       border-radius: 10px;
       overflow: hidden;
       border: 1px solid var(--border);
       background: #000;
+      margin-top: 12px;
     }
-    .img-panel img { width: 100%; display: block; aspect-ratio: 1; object-fit: contain; }
+
+    .img-panel img {
+      width: 100%;
+      display: block;
+      aspect-ratio: 1;
+      object-fit: contain;
+    }
+
     .img-caption {
       padding: 8px 12px;
       font-size: 0.72rem;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
       color: var(--muted);
       border-top: 1px solid var(--border);
       background: var(--surface2);
     }
 
-    /* ── Error box ── */
     #error-box {
       display: none;
       background: #f8717112;
@@ -352,20 +482,24 @@
       color: var(--danger);
       line-height: 1.5;
     }
-    #error-box.visible { display: block; }
 
-    /* ── API URL config ── */
+    #error-box.visible {
+      display: block;
+    }
+
     .api-row {
       display: flex;
       align-items: center;
       gap: 10px;
       margin-bottom: 28px;
     }
+
     .api-row label {
       font-size: 0.8rem;
       color: var(--muted);
       white-space: nowrap;
     }
+
     .api-row input {
       flex: 1;
       background: var(--surface2);
@@ -376,9 +510,81 @@
       font-family: 'Inter', monospace;
       font-size: 0.82rem;
       outline: none;
-      transition: border-color var(--trans);
     }
-    .api-row input:focus { border-color: var(--accent); }
+
+    .api-row input:focus {
+      border-color: var(--accent);
+    }
+
+    /* ── AI Report ── */
+    .ai-report {
+      background: #1a1e2b;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      margin-top: 32px;
+      display: none;
+    }
+
+    .ai-report.visible {
+      display: block;
+    }
+
+    .ai-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+      font-weight: 700;
+      color: var(--accent2);
+      font-size: 1.05rem;
+    }
+
+    .ai-content {
+      font-size: 0.9rem;
+      line-height: 1.6;
+      color: var(--text);
+    }
+
+    .ai-content p {
+      margin-bottom: 12px;
+    }
+
+    .ai-content strong {
+      color: #fff;
+    }
+
+    .ai-content ul,
+    .ai-content ol {
+      padding-left: 20px;
+      margin-bottom: 12px;
+    }
+
+    .skeleton {
+      animation: skeleton-loading 1s linear infinite alternate;
+      border-radius: 4px;
+      height: 16px;
+      margin-bottom: 8px;
+      background: #2a3142;
+    }
+
+    .skeleton.w-75 {
+      width: 75%;
+    }
+
+    .skeleton.w-50 {
+      width: 50%;
+    }
+
+    @keyframes skeleton-loading {
+      0% {
+        background-color: #2a3142;
+      }
+
+      100% {
+        background-color: #3b445b;
+      }
+    }
 
     footer {
       margin-top: 48px;
@@ -386,275 +592,407 @@
       font-size: 0.75rem;
       text-align: center;
     }
+
+    /* ── Print Media Query para gerar PDF ── */
+    @media print {
+      body {
+        background: white;
+        color: black;
+        padding: 0;
+        margin: 0;
+      }
+
+      header .subtitle {
+        color: #555;
+      }
+
+      #status-pill,
+      .api-row,
+      #drop-zone,
+      #analyze-btn,
+      #pdf-btn,
+      #error-box,
+      footer {
+        display: none !important;
+      }
+
+      .card {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        background: white;
+        width: 100%;
+        max-width: 100%;
+      }
+
+      #results-section {
+        display: block !important;
+        margin-top: 20px;
+      }
+
+      .dual-grid {
+        display: flex;
+        gap: 30px;
+      }
+
+      .dual-grid>div {
+        flex: 1;
+      }
+
+      .diagnosis-box {
+        background: #f9f9f9;
+        border-color: #ddd;
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+
+      .conf-track,
+      .prob-track {
+        background: #eee;
+      }
+
+      .img-panel {
+        background: white;
+        border-color: #ddd;
+        page-break-inside: avoid;
+      }
+
+      h1,
+      h2,
+      .diag-disease,
+      .prob-name {
+        color: #000 !important;
+        -webkit-text-fill-color: #000 !important;
+      }
+
+      .subtitle,
+      .diag-sub,
+      .conf-label,
+      .prob-val {
+        color: #555 !important;
+      }
+
+      #preview-section {
+        display: block !important;
+        break-inside: avoid;
+        page-break-inside: avoid;
+        margin-bottom: 20px;
+        width: 60%;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .preview-wrap {
+        border: 1px solid #ddd;
+        background: white;
+      }
+
+      .ai-report {
+        display: block !important;
+        border: 1px solid #ddd;
+        background: #fafafa;
+        margin-top: 30px;
+        page-break-inside: avoid;
+        padding: 20px;
+      }
+
+      .ai-header {
+        color: #000;
+      }
+
+      .ai-content {
+        color: #333;
+      }
+
+      .ai-content strong {
+        color: #000;
+      }
+    }
   </style>
 </head>
+
 <body>
 
-<header>
-  <div class="logo">🐄</div>
-  <h1>Cattle Disease Classifier</h1>
-  <p class="subtitle">Detecção de doenças bovinas com IA — MobileNetV2 + Grad-CAM</p>
-  <div id="status-pill">
-    <span class="dot pulse"></span>
-    <span id="status-text">Verificando API…</span>
-  </div>
-</header>
-
-<div class="card">
-
-  <!-- API URL -->
-  <div class="api-row">
-    <label for="api-url">API URL</label>
-    <input id="api-url" type="text" value="http://localhost:8000" spellcheck="false" />
-  </div>
-
-  <!-- Drop zone -->
-  <div id="drop-zone">
-    <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/bmp" />
-    <div class="drop-icon">📷</div>
-    <p class="drop-label">
-      Arraste uma imagem aqui ou <span>clique para selecionar</span>
-    </p>
-    <p style="font-size:0.75rem;color:var(--muted);margin-top:6px;">JPG · PNG · WEBP · BMP</p>
-    <p id="file-name"></p>
-  </div>
-
-  <!-- Preview -->
-  <div id="preview-section">
-    <p class="preview-label" style="margin-top:20px;">Pré-visualização</p>
-    <div class="preview-wrap">
-      <img id="preview-img" src="" alt="Preview da imagem selecionada" />
+  <header>
+    <div class="logo">🌽🐛</div>
+    <h1>Corn Analyzer (Dual Model)</h1>
+    <p class="subtitle">Análise simultânea de Estágio de Desenvolvimento e Pragas via MobileNetV2</p>
+    <div id="status-pill">
+      <span class="dot pulse"></span>
+      <span id="status-text">Verificando API…</span>
     </div>
-  </div>
+  </header>
 
-  <!-- Error -->
-  <div id="error-box"></div>
-
-  <!-- Analyze button -->
-  <button id="analyze-btn" disabled>
-    <span id="btn-label">Selecione uma imagem</span>
-  </button>
-
-  <!-- Results -->
-  <div id="results-section">
-    <hr class="divider" />
-
-    <div class="result-header">
-      <h2>Resultado da Análise</h2>
-      <span id="confidence-badge" class="badge"></span>
+  <div class="card">
+    <div class="api-row">
+      <label for="api-url">API URL</label>
+      <input id="api-url" type="text" value="http://localhost:8000" spellcheck="false" />
     </div>
 
-    <!-- Diagnosis -->
-    <div class="diagnosis-box">
-      <div class="diag-disease" id="result-disease">—</div>
-      <div class="diag-sub">Doença detectada com maior probabilidade</div>
-      <div class="conf-wrap">
-        <div class="conf-label">
-          <span>Confiança</span>
-          <strong id="result-conf-pct">0%</strong>
+    <div id="drop-zone">
+      <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/bmp" />
+      <div class="drop-icon">📷</div>
+      <p class="drop-label">Arraste uma imagem aqui ou <span>clique para selecionar</span></p>
+      <p style="font-size:0.75rem;color:var(--muted);margin-top:6px;">JPG · PNG · WEBP</p>
+      <p id="file-name"></p>
+    </div>
+
+    <div id="preview-section">
+      <div class="preview-wrap"><img id="preview-img" src="" alt="Preview" /></div>
+    </div>
+
+    <div id="error-box"></div>
+
+    <button id="analyze-btn" disabled><span id="btn-label">Selecione uma imagem</span></button>
+
+    <div id="results-section">
+      <hr class="divider" />
+      <div class="dual-grid">
+        <!-- Coluna Estágio -->
+        <div>
+          <h2 style="font-size:1.1rem;margin-bottom:12px;">🌱 Análise de Estágio</h2>
+          <span id="stage-badge" class="badge"></span>
+          <div class="diagnosis-box" style="border-left-color: #34d399">
+            <div class="diag-disease" id="stage-disease">—</div>
+            <div class="diag-sub">Estágio Fenológico Detectado</div>
+            <div class="conf-wrap">
+              <div class="conf-label"><span>Confiança</span><strong id="stage-conf-pct">0%</strong></div>
+              <div class="conf-track">
+                <div class="conf-fill" id="stage-conf-fill" style="background: #34d399"></div>
+              </div>
+            </div>
+          </div>
+          <p style="font-size:0.75rem;font-weight:600;color:var(--muted);margin-bottom:12px;">PROBABILIDADES</p>
+          <div class="prob-list" id="stage-prob-list"></div>
+          <div class="img-panel">
+            <img id="stage-heatmap" src="" />
+            <div class="img-caption">Grad-CAM (Atenção do Modelo)</div>
+          </div>
         </div>
-        <div class="conf-track">
-          <div class="conf-fill" id="conf-fill"></div>
+
+        <!-- Coluna Praga -->
+        <div>
+          <h2 style="font-size:1.1rem;margin-bottom:12px;">🐛 Análise de Pragas</h2>
+          <span id="pest-badge" class="badge"></span>
+          <div class="diagnosis-box" style="border-left-color: #f87171">
+            <div class="diag-disease" id="pest-disease">—</div>
+            <div class="diag-sub">Praga ou Condição Detectada</div>
+            <div class="conf-wrap">
+              <div class="conf-label"><span>Confiança</span><strong id="pest-conf-pct">0%</strong></div>
+              <div class="conf-track">
+                <div class="conf-fill" id="pest-conf-fill" style="background: #f87171"></div>
+              </div>
+            </div>
+          </div>
+          <p style="font-size:0.75rem;font-weight:600;color:var(--muted);margin-bottom:12px;">PROBABILIDADES</p>
+          <div class="prob-list" id="pest-prob-list"></div>
+          <div class="img-panel">
+            <img id="pest-heatmap" src="" />
+            <div class="img-caption">Grad-CAM (Atenção do Modelo)</div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Probabilities -->
-    <p class="section-title">Probabilidades por Classe</p>
-    <div class="prob-list" id="prob-list"></div>
-
-    <!-- Heatmap -->
-    <p class="section-title">Visualização Grad-CAM</p>
-    <div class="images-grid">
-      <div class="img-panel">
-        <img id="orig-img" src="" alt="Imagem original" />
-        <div class="img-caption">Original</div>
-      </div>
-      <div class="img-panel">
-        <img id="heatmap-img" src="" alt="Mapa de calor Grad-CAM" />
-        <div class="img-caption">Grad-CAM Heatmap</div>
+      <!-- AI Assistant Box -->
+      <div id="ai-report-box" class="ai-report">
+        <div class="ai-header">✨ Recomendações do RoverCare IA</div>
+        <div id="ai-content-box" class="ai-content"></div>
       </div>
     </div>
+
+    <!-- Botão de PDF movido para o final do card principal -->
+    <button id="pdf-btn">🖨️ Imprimir / Salvar PDF</button>
   </div>
 
-</div>
+  <footer>Corn Analyzer · Dual MobileNetV2 Models · FastAPI · Grad-CAM</footer>
 
-<footer>Cattle Disease Classifier · MobileNetV2 · FastAPI · Grad-CAM</footer>
+  <script>
+    const apiInput = document.getElementById('api-url');
+    const fileInput = document.getElementById('file-input');
+    const dropZone = document.getElementById('drop-zone');
+    const fileNameEl = document.getElementById('file-name');
+    const previewSec = document.getElementById('preview-section');
+    const previewImg = document.getElementById('preview-img');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const btnLabel = document.getElementById('btn-label');
+    const errorBox = document.getElementById('error-box');
+    const resultsSec = document.getElementById('results-section');
+    const statusPill = document.getElementById('status-pill');
+    const statusText = document.getElementById('status-text');
+    const pdfBtn = document.getElementById('pdf-btn');
 
-<script>
-  const apiInput     = document.getElementById('api-url');
-  const fileInput    = document.getElementById('file-input');
-  const dropZone     = document.getElementById('drop-zone');
-  const fileNameEl   = document.getElementById('file-name');
-  const previewSec   = document.getElementById('preview-section');
-  const previewImg   = document.getElementById('preview-img');
-  const analyzeBtn   = document.getElementById('analyze-btn');
-  const btnLabel     = document.getElementById('btn-label');
-  const errorBox     = document.getElementById('error-box');
-  const resultsSec   = document.getElementById('results-section');
-  const statusPill   = document.getElementById('status-pill');
-  const statusText   = document.getElementById('status-text');
+    let selectedFile = null;
 
-  let selectedFile = null;
+    // Dicionário de tradução para as classes do modelo
+    const ptTranslations = {
+      "Maize Growth Stage 1": "Estágio V1 (1 folha)",
+      "Maize Growth Stage 2": "Estágio V2 (2 folhas)",
+      "Maize Growth Stage 3": "Estágio V3 (3 folhas)",
+      "Maize Growth Stage 4": "Estágio V4 (4 folhas)",
+      "Maize Growth Stage 5": "Estágio V5 (5 folhas)",
+      "Maize Growth Stage 5 Unhealthy": "Estágio V5 (Doente)",
 
-  // ── Health check ──────────────────────────────────────────────────────────
-  async function checkHealth() {
-    const base = apiInput.value.replace(/\/$/, '');
-    try {
-      const res  = await fetch(`${base}/health`, { signal: AbortSignal.timeout(4000) });
-      const data = await res.json();
-      if (data.model_loaded) {
-        setStatus('online', `API online · ${data.classes ? data.classes.length : '?'} classes`);
-      } else {
-        setStatus('offline', 'API online · modelo não carregado');
+      // Pragas
+      "Asian Corn Borer Larvae": "Broca-do-milho Asiática (Larva)",
+      "Asian Corn Borer Moth": "Broca-do-milho Asiática (Mariposa)",
+      "Asian Corn Borer Moth_multiple": "Broca-do-milho Asiática (Múltiplas)",
+      "Fall Armyworm Larvae": "Lagarta-do-cartucho (Larva)",
+      "Fall Armyworm Larvae_multiple": "Lagarta-do-cartucho (Várias)",
+      "Fall Armyworm Moth": "Lagarta-do-cartucho (Mariposa)",
+      "Fall Armyworm Moth_multiple": "Lagarta-do-cartucho (Várias Mariposas)",
+      "Healthy": "Saudável",
+      "Healthy Corn": "Milho Saudável"
+    };
+
+    function translateClass(className) {
+      // Busca a tradução exata ou retorna formatado caso não exista
+      if (ptTranslations[className]) {
+        return ptTranslations[className];
       }
-    } catch {
-      setStatus('offline', 'API offline — inicie o servidor');
+      return className.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     }
-  }
 
-  function setStatus(state, msg) {
-    statusPill.className = state;
-    statusText.textContent = msg;
-    const dot = statusPill.querySelector('.dot');
-    dot.className = state === 'online' ? 'dot pulse' : 'dot';
-  }
-
-  checkHealth();
-  setInterval(checkHealth, 10000);
-  apiInput.addEventListener('change', checkHealth);
-
-  // ── File handling ─────────────────────────────────────────────────────────
-  function handleFile(file) {
-    if (!file || !file.type.startsWith('image/')) return;
-    selectedFile = file;
-    fileNameEl.textContent = file.name;
-
-    const url = URL.createObjectURL(file);
-    previewImg.src = url;
-    previewSec.classList.add('visible');
-
-    analyzeBtn.disabled = false;
-    btnLabel.textContent = 'Analisar Imagem';
-
-    hideError();
-    resultsSec.classList.remove('visible');
-  }
-
-  fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
-
-  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
-  dropZone.addEventListener('dragleave', ()  => dropZone.classList.remove('dragover'));
-  dropZone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropZone.classList.remove('dragover');
-    handleFile(e.dataTransfer.files[0]);
-  });
-
-  // ── Analyze ───────────────────────────────────────────────────────────────
-  analyzeBtn.addEventListener('click', async () => {
-    if (!selectedFile) return;
-
-    setBtnLoading(true);
-    hideError();
-    resultsSec.classList.remove('visible');
-
-    const base = apiInput.value.replace(/\/$/, '');
-    const form = new FormData();
-    form.append('file', selectedFile);
-
-    try {
-      const res  = await fetch(`${base}/predict`, { method: 'POST', body: form });
-      const data = await res.json();
-
-      if (!res.ok) {
-        showError(`Erro ${res.status}: ${data.detail || 'Falha na inferência.'}`);
-        return;
+    async function checkHealth() {
+      const base = apiInput.value.replace(/\/$/, '');
+      try {
+        const res = await fetch(`${base}/health`, { signal: AbortSignal.timeout(4000) });
+        const data = await res.json();
+        if (data.stages_loaded && data.pests_loaded) {
+          setStatus('online', `API online · IAs carregadas`);
+        } else {
+          setStatus('offline', 'Modelos não carregados. Execute o treinamento.');
+        }
+      } catch {
+        setStatus('offline', 'API offline — inicie o servidor');
       }
-
-      renderResults(data);
-    } catch (err) {
-      showError(`Não foi possível conectar à API em "${base}".\n\nVerifique se o servidor está rodando e tente novamente.`);
-    } finally {
-      setBtnLoading(false);
     }
-  });
 
-  function setBtnLoading(on) {
-    analyzeBtn.disabled = on;
-    btnLabel.textContent = on ? 'Analisando…' : 'Analisar Imagem';
-    const spinner = analyzeBtn.querySelector('.spinner');
-    if (on && !spinner) {
-      const s = document.createElement('div');
-      s.className = 'spinner';
-      analyzeBtn.prepend(s);
-    } else if (!on && spinner) {
-      spinner.remove();
+    function setStatus(state, msg) {
+      statusPill.className = state; statusText.textContent = msg;
+      statusPill.querySelector('.dot').className = state === 'online' ? 'dot pulse' : 'dot';
     }
-  }
 
-  // ── Render results ────────────────────────────────────────────────────────
-  function renderResults(data) {
-    const pct = (data.confianca * 100).toFixed(1);
+    checkHealth(); setInterval(checkHealth, 10000); apiInput.addEventListener('change', checkHealth);
 
-    // Badge color
-    const badge = document.getElementById('confidence-badge');
-    if (data.confianca >= 0.75) { badge.className = 'badge badge-success'; badge.textContent = 'Alta confiança'; }
-    else if (data.confianca >= 0.5) { badge.className = 'badge badge-warn'; badge.textContent = 'Média confiança'; }
-    else { badge.className = 'badge badge-danger'; badge.textContent = 'Baixa confiança'; }
+    function handleFile(file) {
+      if (!file || !file.type.startsWith('image/')) return;
+      selectedFile = file; fileNameEl.textContent = file.name;
+      previewImg.src = URL.createObjectURL(file);
+      previewSec.classList.add('visible');
+      analyzeBtn.disabled = false; btnLabel.textContent = 'Analisar Imagem';
+      hideError(); resultsSec.classList.remove('visible');
+      pdfBtn.classList.remove('visible');
+      document.getElementById('ai-report-box').classList.remove('visible');
+    }
 
-    // Disease & confidence
-    document.getElementById('result-disease').textContent = formatName(data.doenca_detectada);
-    document.getElementById('result-conf-pct').textContent = `${pct}%`;
-    setTimeout(() => {
-      document.getElementById('conf-fill').style.width = `${pct}%`;
-    }, 80);
+    fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); handleFile(e.dataTransfer.files[0]); });
 
-    // Probabilities
-    const list = document.getElementById('prob-list');
-    list.innerHTML = '';
-    const sorted = Object.entries(data.probabilidades).sort((a, b) => b[1] - a[1]);
-    sorted.forEach(([cls, prob], i) => {
-      const p = (prob * 100).toFixed(2);
-      const isTop = i === 0;
-      const item = document.createElement('div');
-      item.className = 'prob-item';
-      item.innerHTML = `
-        <div class="prob-row">
-          <span class="prob-name">${formatName(cls)}</span>
-          <span class="prob-val">${p}%</span>
-        </div>
-        <div class="prob-track">
-          <div class="prob-fill${isTop ? ' top' : ''}" data-w="${p}"></div>
-        </div>`;
-      list.appendChild(item);
+    analyzeBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+      setBtnLoading(true); hideError(); resultsSec.classList.remove('visible');
+
+      const base = apiInput.value.replace(/\/$/, '');
+      const form = new FormData(); form.append('file', selectedFile);
+
+      try {
+        const res = await fetch(`${base}/predict`, { method: 'POST', body: form });
+        const data = await res.json();
+        if (!res.ok) { showError(`Erro ${res.status}: ${data.detail || 'Falha na inferência.'}`); return; }
+        renderResults(data);
+      } catch (err) {
+        showError(`Não foi possível conectar à API em "${base}".`);
+      } finally {
+        setBtnLoading(false);
+      }
     });
-    setTimeout(() => {
-      list.querySelectorAll('.prob-fill').forEach(el => {
-        el.style.width = el.dataset.w + '%';
+
+    function setBtnLoading(on) {
+      analyzeBtn.disabled = on; btnLabel.textContent = on ? 'Analisando…' : 'Analisar Imagem';
+      const spinner = analyzeBtn.querySelector('.spinner');
+      if (on && !spinner) { const s = document.createElement('div'); s.className = 'spinner'; analyzeBtn.prepend(s); }
+      else if (!on && spinner) spinner.remove();
+    }
+
+    async function fetchLLMReport(data) {
+      const aiBox = document.getElementById('ai-report-box');
+      const aiContent = document.getElementById('ai-content-box');
+
+      // Mostra o skeleton de carregamento
+      aiBox.classList.add('visible');
+      aiContent.innerHTML = '<div class="skeleton"></div><div class="skeleton"></div><div class="skeleton w-75"></div><br><div class="skeleton"></div><div class="skeleton w-50"></div>';
+
+      const base = apiInput.value.replace(/\/$/, '');
+      const estagio_traduzido = translateClass(data.estagio.classe_detectada);
+      const praga_traduzida = translateClass(data.praga.classe_detectada);
+
+      try {
+        const res = await fetch(`${base}/generate_llm_report`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ estagio: estagio_traduzido, praga: praga_traduzida })
+        });
+        if (!res.ok) throw new Error();
+        const llmData = await res.json();
+
+        aiContent.innerHTML = marked.parse(llmData.report_markdown);
+      } catch (e) {
+        aiContent.innerHTML = '<p style="color:var(--danger)">Não foi possível gerar as recomendações com a IA no momento.</p>';
+      }
+    }
+
+    function renderResults(data) {
+      renderColumn('stage', data.estagio);
+      renderColumn('pest', data.praga);
+      resultsSec.classList.add('visible');
+      pdfBtn.classList.add('visible');
+      resultsSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      // Inicia a geração do relatório IA de forma não bloqueante
+      fetchLLMReport(data);
+    }
+
+    function renderColumn(prefix, dataInfo) {
+      const pct = (dataInfo.confianca * 100).toFixed(1);
+
+      const badge = document.getElementById(`${prefix}-badge`);
+      if (dataInfo.confianca >= 0.75) { badge.className = 'badge badge-success'; badge.textContent = 'Alta confiança'; }
+      else if (dataInfo.confianca >= 0.5) { badge.className = 'badge badge-warn'; badge.textContent = 'Média confiança'; }
+      else { badge.className = 'badge badge-danger'; badge.textContent = 'Baixa confiança'; }
+
+      document.getElementById(`${prefix}-disease`).textContent = translateClass(dataInfo.classe_detectada);
+      document.getElementById(`${prefix}-conf-pct`).textContent = `${pct}%`;
+      setTimeout(() => { document.getElementById(`${prefix}-conf-fill`).style.width = `${pct}%`; }, 80);
+
+      const list = document.getElementById(`${prefix}-prob-list`);
+      list.innerHTML = '';
+      const sorted = Object.entries(dataInfo.probabilidades).sort((a, b) => b[1] - a[1]).slice(0, 4); // top 4
+      sorted.forEach(([cls, prob], i) => {
+        const p = (prob * 100).toFixed(2);
+        const isTop = i === 0;
+        const color = prefix === 'stage' ? '#34d399' : '#f87171';
+        const item = document.createElement('div');
+        item.className = 'prob-item';
+        item.innerHTML = `
+        <div class="prob-row"><span class="prob-name">${translateClass(cls)}</span><span class="prob-val">${p}%</span></div>
+        <div class="prob-track"><div class="prob-fill${isTop ? ' top' : ''}" style="width:0%; ${isTop ? `background:${color}` : ''}" data-w="${p}"></div></div>`;
+        list.appendChild(item);
       });
-    }, 80);
+      setTimeout(() => { list.querySelectorAll('.prob-fill').forEach(el => { el.style.width = el.dataset.w + '%'; }); }, 80);
 
-    // Images
-    document.getElementById('orig-img').src = previewImg.src;
-    document.getElementById('heatmap-img').src = `data:image/jpeg;base64,${data.heatmap_base64}`;
+      document.getElementById(`${prefix}-heatmap`).src = `data:image/jpeg;base64,${dataInfo.heatmap_base64}`;
+    }
 
-    resultsSec.classList.add('visible');
-    resultsSec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+    // Gera o PDF (via janela de Impressão nativa do Navegador)
+    pdfBtn.addEventListener('click', () => {
+      window.print();
+    });
 
-  function formatName(name) {
-    return name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  }
-
-  function showError(msg) {
-    errorBox.textContent = msg;
-    errorBox.classList.add('visible');
-  }
-  function hideError() {
-    errorBox.classList.remove('visible');
-    errorBox.textContent = '';
-  }
-</script>
+    function showError(msg) { errorBox.textContent = msg; errorBox.classList.add('visible'); }
+    function hideError() { errorBox.classList.remove('visible'); errorBox.textContent = ''; }
+  </script>
 </body>
+
 </html>
